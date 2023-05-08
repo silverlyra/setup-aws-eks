@@ -1,11 +1,20 @@
-name: 'Your name here'
+name: 'Setup AWS EKS'
 description: 'Provide a description here'
-author: 'Your name or organization here'
+author: 'Configure a workflow to connect to an EKS cluster'
+branding:
+  icon: cloud-drizzle
+  color: blue
 inputs:
-  milliseconds: # change this
+  cluster:
+    description: 'Name of the EKS cluster to connect to'
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+  context:
+    description: '.kube/config context name (default: cluster name)'
+  role:
+    description: 'ARN of an IAM role to assume for cluster authentication'
+  activate:
+    description: 'Run `kubectl config use-context` for the newly-created context'
+    default: 'false'
 runs:
   using: 'node16'
   main: 'dist/index.js'

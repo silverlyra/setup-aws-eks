@@ -1,105 +1,58 @@
-<p align="center">
-  <a href="https://github.com/actions/typescript-action/actions"><img alt="typescript-action status" src="https://github.com/actions/typescript-action/workflows/build-test/badge.svg"></a>
-</p>
+# setup-aws-eks
 
-# Create a JavaScript Action using TypeScript
+[![build-test](https://github.com/silverlyra/setup-aws-eks/actions/workflows/test.yml/badge.svg)](https://github.com/silverlyra/setup-aws-eks/actions/workflows/test.yml)
 
-Use this template to bootstrap the creation of a TypeScript action.:rocket:
+Use this action to connect to an [AWS EKS][] cluster from a [GitHub Actions][] workflow.
 
-This template includes compilation support, tests, a validation workflow, publishing, and versioning guidance.  
+This action will create or update the [`.kube/config`][kubeconfig] file, configuring Kubernetes clients (including the [`kubectl`][kubectl] CLI) to connect to your EKS cluster. It uses the [`update-kubeconfig`][update-kubeconfig] command provided by the AWS CLI.
 
-If you are new, there's also a simpler introduction.  See the [Hello World JavaScript Action](https://github.com/actions/hello-world-javascript-action)
+[AWS EKS]: https://aws.amazon.com/eks/
+[GitHub Actions]: https://docs.github.com/en/actions
+[kubeconfig]: https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/
+[kubectl]: https://kubernetes.io/docs/reference/kubectl/
+[update-kubeconfig]: https://awscli.amazonaws.com/v2/documentation/api/latest/reference/eks/update-kubeconfig.html
 
-## Create an action from this template
+## Usage
 
-Click the `Use this Template` and provide the new repo details for your action
+See [action.yml](action.yml).
 
-## Code in Main
-
-> First, you'll need to have a reasonably modern version of `node` handy. This won't work with versions older than 9, for instance.
-
-Install the dependencies  
-```bash
-$ npm install
-```
-
-Build the typescript and package it for distribution
-```bash
-$ npm run build && npm run package
-```
-
-Run the tests :heavy_check_mark:  
-```bash
-$ npm test
-
- PASS  ./index.test.js
-  ✓ throws invalid number (3ms)
-  ✓ wait 500 ms (504ms)
-  ✓ test runs (95ms)
-
-...
-```
-
-## Change action.yml
-
-The action.yml defines the inputs and output for your action.
-
-Update the action.yml with your name, description, inputs and outputs for your action.
-
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
-
-## Change the Code
-
-Most toolkit and CI/CD operations involve async operations so the action is run in an async function.
-
-```javascript
-import * as core from '@actions/core';
-...
-
-async function run() {
-  try { 
-      ...
-  } 
-  catch (error) {
-    core.setFailed(error.message);
-  }
-}
-
-run()
-```
-
-See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
-
-## Publish to a distribution branch
-
-Actions are run from GitHub repos so we will checkin the packed dist folder. 
-
-Then run [ncc](https://github.com/zeit/ncc) and push the results:
-```bash
-$ npm run package
-$ git add dist
-$ git commit -a -m "prod dependencies"
-$ git push origin releases/v1
-```
-
-Note: We recommend using the `--license` option for ncc, which will create a license file for all of the production node modules used in your project.
-
-Your action is now published! :rocket: 
-
-See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
-
-## Validate
-
-You can now validate the action by referencing `./` in a workflow in your repo (see [test.yml](.github/workflows/test.yml))
-
+<!-- start usage -->
 ```yaml
-uses: ./
-with:
-  milliseconds: 1000
+- uses: silverlyra/setup-aws-eks@main
+  with:
+    # Name of the EKS cluster you want to access (required)
+    cluster: ''
+
+    # Name of the Kubernetes config context to create (default: EKS cluster name)
+    context: ''
+
+    # ARN of an IAM role to assign to cluster authentication
+    role: ''
+
+    # If 'true', the action will run use-context for the cluster's new context
+    activate: 'false'
+```
+<!-- end usage -->
+
+### Example
+```yaml
+- name: Configure AWS Credentials
+  uses: aws-actions/configure-aws-credentials@v2
+  with:
+    role-to-assume: arn:aws:iam::123456789100:role/my-github-actions-role
+    aws-region: us-east-2
+- name: Configure Kubernetes client
+  uses: silverlyra/setup-aws-eks@main
+  with:
+    cluster: my-cluster-name
 ```
 
-See the [actions tab](https://github.com/actions/typescript-action/actions) for runs of this action! :rocket:
+## Outputs
 
-## Usage:
-
-After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
+- **`context`** – The name of the Kubernetes context created
+- **`cluster_name`** – The EKS cluster name for which access was configured
+- **`cluster_arn`** – The ARN of the EKS cluster
+- **`cluster_status`** – The observed `status` of the EKS cluster
+- **`cluster_endpoint`** – The `https://` origin of the cluster's API server
+- **`cluster_tags`** – The AWS tags applied to the EKS cluster, as a JSON object
+- **`kubernetes_version`** – The Kubernetes version of the cluster, e.g., `1.24`
