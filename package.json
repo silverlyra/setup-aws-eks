@@ -1,8 +1,8 @@
 {
-  "name": "typescript-action",
+  "name": "setup-aws-eks-action",
   "version": "0.0.0",
   "private": true,
-  "description": "TypeScript template action",
+  "description": "Connect a GitHub Actions worker to an EKS cluster",
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc",
@@ -11,18 +11,17 @@
     "lint": "eslint src/**/*.ts",
     "package": "ncc build --source-map --license licenses.txt",
     "test": "true",
-    "all": "npm run build && npm run format && npm run lint && npm run package && npm test"
+    "all": "npm run build && npm run format && npm run lint && npm run package"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/silverlyra/setup-aws-eks.git"
   },
   "keywords": [
     "actions",
-    "node",
     "setup"
   ],
-  "author": "",
+  "author": "Lyra Naeseth <lyra@lyra.codes>",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.10.0"

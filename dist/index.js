@@ -39,56 +39,106 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+const child_process_1 = __nccwpck_require__(81);
 const core = __importStar(__nccwpck_require__(186));
-const wait_1 = __nccwpck_require__(817);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const ms = core.getInput('milliseconds');
-            core.debug(`Waiting ${ms} milliseconds ...`); // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-            core.debug(new Date().toTimeString());
-            yield (0, wait_1.wait)(parseInt(ms, 10));
-            core.debug(new Date().toTimeString());
-            core.setOutput('time', new Date().toTimeString());
+        const name = core.getInput('cluster', { required: true });
+        const context = core.getInput('context') || name;
+        const role = core.getInput('role') || undefined;
+        const activate = core.getBooleanInput('activate');
+        const allowError = core.getBooleanInput('allow-error');
+        const cluster = yield describeCluster(name);
+        if (core.isDebug()) {
+            yield configureCluster(true);
         }
-        catch (error) {
-            if (error instanceof Error)
-                core.setFailed(error.message);
+        try {
+            yield configureCluster();
+        }
+        catch (err) {
+            core.error('aws eks update-kubeconfig failed');
+            if (!allowError)
+                throw err;
+        }
+        core.setOutput('context', context);
+        if (activate) {
+            try {
+                core.info(yield exec(['kubectl', 'config', 'use-context', context]));
+            }
+            catch (err) {
+                core.error('kubectl config use-context failed');
+                throw err;
+            }
+        }
+        function configureCluster(dryRun = false) {
+            var _a;
+            return __awaiter(this, void 0, void 0, function* () {
+                return updateKubeconfig((_a = cluster === null || cluster === void 0 ? void 0 : cluster.name) !== null && _a !== void 0 ? _a : name, context, role, dryRun);
+            });
         }
     });
 }
-run();
-
-
-/***/ }),
-
-/***/ 817:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.wait = void 0;
-function wait(milliseconds) {
+function updateKubeconfig(name, context, role, dryRun = false) {
     return __awaiter(this, void 0, void 0, function* () {
-        return new Promise(resolve => {
-            if (isNaN(milliseconds)) {
-                throw new Error('milliseconds not a number');
-            }
-            setTimeout(() => resolve('done!'), milliseconds);
+        core.info(yield exec([
+            'aws',
+            'eks',
+            'update-kubeconfig',
+            ...['--name', name],
+            ...(context ? ['--alias', context] : []),
+            ...(role ? ['--role-arn', role] : []),
+            ...(dryRun ? ['--dry-run'] : [])
+        ]));
+    });
+}
+function describeCluster(name) {
+    var _a;
+    return __awaiter(this, void 0, void 0, function* () {
+        let cluster;
+        try {
+            cluster = JSON.parse(yield exec(['aws', 'eks', 'describe-cluster', '--name', name]));
+        }
+        catch (err) {
+            core.warning(`Failed to describe EKS cluster ${JSON.stringify(name)}: ${err}`);
+            return null;
+        }
+        core.setOutput('cluster_name', cluster.name);
+        core.setOutput('cluster_arn', cluster.arn);
+        core.setOutput('cluster_status', cluster.status);
+        core.setOutput('cluster_endpoint', cluster.endpoint);
+        core.setOutput('cluster_tags', JSON.stringify((_a = cluster.tags) !== null && _a !== void 0 ? _a : {}));
+        core.setOutput('kubernetes_version', cluster.version);
+        core.setOutput('platform_version', cluster.platformVersion);
+        core.setOutput('certificate_authority', Buffer.from(cluster.certificateAuthority.data, 'base64').toString('utf-8'));
+        return cluster;
+    });
+}
+function exec(command) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const process = (0, child_process_1.spawn)(command[0], command.slice(1), {
+            stdio: ['ignore', 'pipe', 'inherit']
+        });
+        return new Promise((resolve, reject) => {
+            const output = [];
+            process.once('error', reject);
+            process.stdout.on('data', data => {
+                output.push(data.toString('utf-8'));
+            });
+            process.once('close', (status, signal) => {
+                if (signal != null) {
+                    reject(new Error(`${command[0]} process exited from signal ${signal}`));
+                }
+                else if (status != null && status !== 0) {
+                    reject(new Error(`${command[0]} process exited with status ${status}`));
+                }
+                else {
+                    resolve(output.join(''));
+                }
+            });
         });
     });
 }
-exports.wait = wait;
+run().catch(core.setFailed);
 
 
 /***/ }),
@@ -2785,6 +2835,14 @@ exports["default"] = _default;
 
 "use strict";
 module.exports = require("assert");
+
+/***/ }),
+
+/***/ 81:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("child_process");
 
 /***/ }),
 
