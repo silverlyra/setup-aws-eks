@@ -1,6 +1,6 @@
 name: 'Setup AWS EKS'
-description: 'Provide a description here'
-author: 'Configure a workflow to connect to an EKS cluster'
+description: 'Configure a workflow to connect to an EKS cluster'
+author: 'Lyra Naeseth'
 branding:
   icon: cloud-drizzle
   color: blue
@@ -15,6 +15,8 @@ inputs:
   activate:
     description: 'Run `kubectl config use-context` for the newly-created context'
     default: 'false'
+  allow-error:
+    default: false
 runs:
   using: 'node16'
   main: 'dist/index.js'
