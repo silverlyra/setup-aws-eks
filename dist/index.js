@@ -48,7 +48,12 @@ function run() {
         const role = core.getInput('role') || undefined;
         const activate = core.getBooleanInput('activate');
         const allowError = core.getBooleanInput('allow-error');
-        const cluster = yield describeCluster(name);
+        const env = role ? yield assumeRole(role) : undefined;
+        const cluster = yield describeCluster(name, env);
+        if (cluster != null) {
+            core.info(`Configuring context ${context} for cluster ${cluster.name} ` +
+                `(${cluster.version}.${cluster.platformVersion}, ${cluster.status})`);
+        }
         if (core.isDebug()) {
             yield configureCluster(true);
         }
@@ -70,15 +75,18 @@ function run() {
                 throw err;
             }
         }
+        if (core.isDebug()) {
+            yield exec(['kubectl', 'config', 'view']);
+        }
         function configureCluster(dryRun = false) {
             var _a;
             return __awaiter(this, void 0, void 0, function* () {
-                return updateKubeconfig((_a = cluster === null || cluster === void 0 ? void 0 : cluster.name) !== null && _a !== void 0 ? _a : name, context, role, dryRun);
+                return updateKubeconfig((_a = cluster === null || cluster === void 0 ? void 0 : cluster.name) !== null && _a !== void 0 ? _a : name, context, role, env, dryRun);
             });
         }
     });
 }
-function updateKubeconfig(name, context, role, dryRun = false) {
+function updateKubeconfig(name, context, role, env, dryRun = false) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(yield exec([
             'aws',
@@ -88,15 +96,15 @@ function updateKubeconfig(name, context, role, dryRun = false) {
             ...(context ? ['--alias', context] : []),
             ...(role ? ['--role-arn', role] : []),
             ...(dryRun ? ['--dry-run'] : [])
-        ]));
+        ], env));
     });
 }
-function describeCluster(name) {
-    var _a;
+function describeCluster(name, env) {
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
         let cluster;
         try {
-            cluster = JSON.parse(yield exec(['aws', 'eks', 'describe-cluster', '--name', name]));
+            cluster = JSON.parse(yield exec(['aws', 'eks', 'describe-cluster', '--name', name], env)).cluster;
         }
         catch (err) {
             core.warning(`Failed to describe EKS cluster ${JSON.stringify(name)}: ${err}`);
@@ -109,22 +117,24 @@ function describeCluster(name) {
         core.setOutput('cluster_tags', JSON.stringify((_a = cluster.tags) !== null && _a !== void 0 ? _a : {}));
         core.setOutput('kubernetes_version', cluster.version);
         core.setOutput('platform_version', cluster.platformVersion);
-        core.setOutput('certificate_authority', Buffer.from(cluster.certificateAuthority.data, 'base64').toString('utf-8'));
+        if ((_b = cluster.certificateAuthority) === null || _b === void 0 ? void 0 : _b.data)
+            core.setOutput('certificate_authority', Buffer.from(cluster.certificateAuthority.data, 'base64').toString('utf-8'));
         return cluster;
     });
 }
-function exec(command) {
+function exec(command, env) {
     return __awaiter(this, void 0, void 0, function* () {
-        const process = (0, child_process_1.spawn)(command[0], command.slice(1), {
-            stdio: ['ignore', 'pipe', 'inherit']
+        const proc = (0, child_process_1.spawn)(command[0], command.slice(1), {
+            stdio: ['ignore', 'pipe', 'inherit'],
+            env: env ? Object.assign(Object.assign({}, process.env), env) : undefined
         });
         return new Promise((resolve, reject) => {
             const output = [];
-            process.once('error', reject);
-            process.stdout.on('data', data => {
+            proc.once('error', reject);
+            proc.stdout.on('data', data => {
                 output.push(data.toString('utf-8'));
             });
-            process.once('close', (status, signal) => {
+            proc.once('close', (status, signal) => {
                 if (signal != null) {
                     reject(new Error(`${command[0]} process exited from signal ${signal}`));
                 }
@@ -136,6 +146,27 @@ function exec(command) {
                 }
             });
         });
+    });
+}
+function assumeRole(arn) {
+    return __awaiter(this, void 0, void 0, function* () {
+        core.info(`Assuming AWS IAM role ${arn}`);
+        const output = yield exec([
+            'aws',
+            'sts',
+            'assume-role',
+            '--role-arn',
+            arn,
+            '--role-session-name',
+            'setup-aws-eks'
+        ]);
+        const role = JSON.parse(output);
+        const { Credentials: { AccessKeyId: id, SecretAccessKey: secret, SessionToken: token } } = role;
+        return {
+            AWS_ACCESS_KEY_ID: id,
+            AWS_SECRET_ACCESS_KEY: secret,
+            AWS_SESSION_TOKEN: token
+        };
     });
 }
 run().catch(core.setFailed);
