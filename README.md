@@ -18,7 +18,7 @@ See [action.yml](action.yml).
 
 <!-- start usage -->
 ```yaml
-- uses: silverlyra/setup-aws-eks@main
+- uses: silverlyra/setup-aws-eks@v0.1
   with:
     # Name of the EKS cluster you want to access (required)
     cluster: ''
@@ -41,10 +41,16 @@ See [action.yml](action.yml).
   with:
     role-to-assume: arn:aws:iam::123456789100:role/my-github-actions-role
     aws-region: us-east-2
+
 - name: Configure Kubernetes client
-  uses: silverlyra/setup-aws-eks@main
+  uses: silverlyra/setup-aws-eks@v0.1
   with:
     cluster: my-cluster-name
+
+- name: Deploy service
+  run: |
+    kubectl apply -f ./deployment.yml
+    kubectl rollout status -f ./deployment.yml --timeout=15m
 ```
 
 ## Outputs
