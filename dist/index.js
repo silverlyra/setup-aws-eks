@@ -78,16 +78,16 @@ function run() {
         if (core.isDebug()) {
             yield exec(['kubectl', 'config', 'view']);
         }
-        function configureCluster(dryRun = false) {
-            var _a;
-            return __awaiter(this, void 0, void 0, function* () {
+        function configureCluster() {
+            return __awaiter(this, arguments, void 0, function* (dryRun = false) {
+                var _a;
                 return updateKubeconfig((_a = cluster === null || cluster === void 0 ? void 0 : cluster.name) !== null && _a !== void 0 ? _a : name, context, role, env, dryRun);
             });
         }
     });
 }
-function updateKubeconfig(name, context, role, env, dryRun = false) {
-    return __awaiter(this, void 0, void 0, function* () {
+function updateKubeconfig(name_1, context_1, role_1, env_1) {
+    return __awaiter(this, arguments, void 0, function* (name, context, role, env, dryRun = false) {
         core.info(yield exec([
             'aws',
             'eks',
@@ -100,8 +100,8 @@ function updateKubeconfig(name, context, role, env, dryRun = false) {
     });
 }
 function describeCluster(name, env) {
-    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
         let cluster;
         try {
             cluster = JSON.parse(yield exec(['aws', 'eks', 'describe-cluster', '--name', name], env)).cluster;
